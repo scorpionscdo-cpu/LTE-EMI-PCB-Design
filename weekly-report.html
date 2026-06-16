@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>주간업무보고서 자동작성</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Malgun Gothic", sans-serif;
+      background: linear-gradient(135deg, #2b2d42 0%, #1a1a2e 100%);
+      min-height: 100vh;
+      color: #e6e8f0;
+      padding: 24px 16px;
+    }
+    .wrap { max-width: 880px; margin: 0 auto; }
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .sub { color: #8b8fb0; font-size: 0.9rem; margin-bottom: 22px; }
+
+    .card {
+      background: #1f2235;
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
+      margin-bottom: 22px;
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      color: #fff;
+    }
+
+    /* 입력 영역 */
+    .field { margin-bottom: 14px; }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: #9aa0c4;
+      margin-bottom: 6px;
+    }
+    input[type="date"], select, textarea, input[type="text"] {
+      width: 100%;
+      background: #15172b;
+      border: 1px solid #2e3150;
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: #fff;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+    textarea { resize: vertical; min-height: 110px; line-height: 1.5; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #ff8c42; }
+    .row { display: flex; gap: 14px; flex-wrap: wrap; }
+    .row > .field { flex: 1; min-width: 150px; }
+    .hint { font-size: 0.78rem; color: #6c7293; margin-top: 6px; }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #fff;
+      background: #2e3150;
+      transition: filter 0.15s, transform 0.05s;
+      font-family: inherit;
+    }
+    .btn:hover { filter: brightness(1.2); }
+    .btn:active { transform: scale(0.97); }
+    .btn.primary { background: #ff8c42; }
+    .btn.green { background: #4caf50; }
+    .btn.ghost { background: transparent; border: 1px solid #44476a; color: #b6bae0; }
+    .btn.sm { padding: 7px 12px; font-size: 0.8rem; }
+    .btn-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+    /* 주 네비게이션 */
+    .week-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .week-nav .title { font-size: 1.05rem; font-weight: 700; color: #fff; text-align: center; flex: 1; }
+    .week-nav .title small { display: block; color: #8b8fb0; font-weight: 400; font-size: 0.78rem; margin-top: 2px; }
+
+    /* 보고서 테이블 */
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 12px 12px; vertical-align: top; border-bottom: 1px solid #2a2d48; }
+    th { color: #9aa0c4; font-size: 0.82rem; font-weight: 600; }
+    td.day { white-space: nowrap; color: #ffd166; font-weight: 600; width: 120px; }
+    td.day .date { display: block; color: #6c7293; font-weight: 400; font-size: 0.78rem; margin-top: 2px; }
+    td.tasks ul { list-style: none; }
+    td.tasks li { padding: 3px 0 3px 16px; position: relative; line-height: 1.5; }
+    td.tasks li::before { content: "•"; position: absolute; left: 2px; color: #ff8c42; }
+    td.tasks .empty { color: #555a7d; font-style: italic; }
+    tr.today td.day { color: #4caf50; }
+    tr.today { background: rgba(76, 175, 80, 0.06); }
+    td.act { width: 64px; text-align: right; white-space: nowrap; }
+    .del { background: none; border: none; color: #6c7293; cursor: pointer; font-size: 0.95rem; padding: 2px 6px; border-radius: 6px; }
+    .del:hover { color: #ff6b6b; background: rgba(255,107,107,0.1); }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #4caf50;
+      color: #fff;
+      padding: 12px 22px;
+      border-radius: 30px;
+      font-size: 0.9rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    @media print {
+      body { background: #fff; color: #000; padding: 0; }
+      .no-print { display: none !important; }
+      .card { box-shadow: none; background: #fff; border: 1px solid #ccc; }
+      h1, .card h2, td.day, .week-nav .title { color: #000 !important; }
+      td.tasks li::before { color: #000; }
+      th { color: #333; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>🗂️ 주간업무보고서 자동작성</h1>
+    <p class="sub">매일 한 일을 적어두면 그 주의 보고서에 자동으로 정리됩니다. 데이터는 이 브라우저에 저장됩니다.</p>
+
+    <!-- 일일 업무 입력 -->
+    <div class="card no-print">
+      <h2>오늘 한 일 기록하기</h2>
+      <div class="row">
+        <div class="field">
+          <label for="taskDate">날짜</label>
+          <input type="date" id="taskDate">
+        </div>
+        <div class="field" style="flex: 2;">
+          <label for="category">구분 (선택)</label>
+          <input type="text" id="category" placeholder="예: 개발 / 회의 / 기타">
+        </div>
+      </div>
+      <div class="field">
+        <label for="taskInput">업무 내용 — 한 줄에 하나씩 적으세요</label>
+        <textarea id="taskInput" placeholder="예시)&#10;LTE EMI PCB 레이아웃 1차 검토&#10;협력업체 미팅 (오전 10시)&#10;테스트 리포트 작성"></textarea>
+        <div class="hint">Ctrl+Enter 로 빠르게 추가할 수 있습니다.</div>
+      </div>
+      <div class="btn-bar">
+        <button class="btn primary" id="addBtn">＋ 보고서에 추가</button>
+        <button class="btn ghost" id="clearInputBtn">입력 지우기</button>
+      </div>
+    </div>
+
+    <!-- 주간 보고서 -->
+    <div class="card">
+      <div class="week-nav no-print">
+        <button class="btn sm ghost" id="prevWeek">◀ 지난주</button>
+        <div class="title" id="weekTitle">이번 주</div>
+        <button class="btn sm ghost" id="nextWeek">다음주 ▶</button>
+      </div>
+      <h2 id="reportHeading">주간 업무 보고</h2>
+      <table>
+        <thead>
+          <tr><th>요일</th><th>업무 내용</th><th class="no-print"></th></tr>
+        </thead>
+        <tbody id="reportBody"></tbody>
+      </table>
+      <div class="btn-bar no-print" style="margin-top: 18px;">
+        <button class="btn green" id="copyBtn">📋 텍스트로 복사</button>
+        <button class="btn" id="printBtn">🖨️ 인쇄 / PDF 저장</button>
+        <button class="btn ghost" id="todayBtn">오늘 주로 이동</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORAGE_KEY = 'weeklyWorkReport.v1';
+    const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
+
+    // { "2026-06-16": [ {text, category}, ... ] }
+    function loadData() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+      catch { return {}; }
+    }
+    function saveData(data) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    let data = loadData();
+    let weekOffset = 0; // 0 = 이번 주, -1 = 지난주 ...
+
+    // ---- 날짜 유틸 ----
+    function toKey(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+    // 해당 날짜가 속한 주의 월요일 반환
+    function getMonday(d) {
+      const r = new Date(d);
+      const wd = r.getDay(); // 0=일
+      const diff = (wd === 0 ? -6 : 1 - wd);
+      r.setDate(r.getDate() + diff);
+      r.setHours(0, 0, 0, 0);
+      return r;
+    }
+    function fmtKorean(d) {
+      return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+    }
+
+    // ---- 입력 처리 ----
+    const taskDate = document.getElementById('taskDate');
+    const categoryEl = document.getElementById('category');
+    const taskInput = document.getElementById('taskInput');
+    const toast = document.getElementById('toast');
+
+    taskDate.value = toKey(new Date());
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    function addTasks() {
+      const key = taskDate.value;
+      if (!key) { showToast('날짜를 선택하세요'); return; }
+      const cat = categoryEl.value.trim();
+      const lines = taskInput.value.split('\n').map(s => s.trim()).filter(Boolean);
+      if (lines.length === 0) { showToast('업무 내용을 입력하세요'); return; }
+
+      if (!data[key]) data[key] = [];
+      lines.forEach(text => data[key].push({ text, category: cat }));
+      saveData(data);
+
+      // 입력한 날짜가 속한 주로 이동
+      const monday = getMonday(new Date(key + 'T00:00:00'));
+      const thisMonday = getMonday(new Date());
+      weekOffset = Math.round((monday - thisMonday) / (7 * 86400000));
+
+      taskInput.value = '';
+      categoryEl.value = '';
+      render();
+      showToast(`${lines.length}건이 보고서에 추가되었습니다`);
+    }
+
+    document.getElementById('addBtn').addEventListener('click', addTasks);
+    document.getElementById('clearInputBtn').addEventListener('click', () => {
+      taskInput.value = ''; categoryEl.value = '';
+    });
+    taskInput.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); addTasks(); }
+    });
+
+    // ---- 보고서 렌더링 ----
+    function getWeekDays() {
+      const thisMonday = getMonday(new Date());
+      const monday = new Date(thisMonday);
+      monday.setDate(monday.getDate() + weekOffset * 7);
+      const days = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        days.push(d);
+      }
+      return days; // 월~일
+    }
+
+    function render() {
+      const days = getWeekDays();
+      const monday = days[0], sunday = days[6];
+      const todayKey = toKey(new Date());
+
+      // 주 제목
+      let label = '이번 주';
+      if (weekOffset === -1) label = '지난주';
+      else if (weekOffset === 1) label = '다음주';
+      else if (weekOffset !== 0) label = `${weekOffset < 0 ? weekOffset + '주' : '+' + weekOffset + '주'}`;
+      document.getElementById('weekTitle').innerHTML =
+        `${label}<small>${monday.getFullYear()}. ${fmtKorean(monday)} ~ ${fmtKorean(sunday)}</small>`;
+      document.getElementById('reportHeading').textContent =
+        `${monday.getFullYear()}년 ${fmtKorean(monday)} ~ ${fmtKorean(sunday)} 주간 업무 보고`;
+
+      const body = document.getElementById('reportBody');
+      body.innerHTML = '';
+
+      days.forEach(d => {
+        const key = toKey(d);
+        const tasks = data[key] || [];
+        const tr = document.createElement('tr');
+        if (key === todayKey) tr.className = 'today';
+
+        const tdDay = document.createElement('td');
+        tdDay.className = 'day';
+        tdDay.innerHTML = `${DAY_NAMES[d.getDay()]}요일<span class="date">${fmtKorean(d)}</span>`;
+
+        const tdTasks = document.createElement('td');
+        tdTasks.className = 'tasks';
+        if (tasks.length === 0) {
+          tdTasks.innerHTML = '<span class="empty">기록 없음</span>';
+        } else {
+          const ul = document.createElement('ul');
+          tasks.forEach((t, idx) => {
+            const li = document.createElement('li');
+            li.textContent = (t.category ? `[${t.category}] ` : '') + t.text;
+            const del = document.createElement('button');
+            del.className = 'del no-print';
+            del.textContent = '✕';
+            del.title = '삭제';
+            del.onclick = () => { deleteTask(key, idx); };
+            li.appendChild(del);
+            ul.appendChild(li);
+          });
+          tdTasks.appendChild(ul);
+        }
+
+        const tdAct = document.createElement('td');
+        tdAct.className = 'act no-print';
+
+        tr.appendChild(tdDay);
+        tr.appendChild(tdTasks);
+        tr.appendChild(tdAct);
+        body.appendChild(tr);
+      });
+    }
+
+    function deleteTask(key, idx) {
+      if (!data[key]) return;
+      data[key].splice(idx, 1);
+      if (data[key].length === 0) delete data[key];
+      saveData(data);
+      render();
+    }
+
+    // ---- 텍스트 복사 ----
+    function buildText() {
+      const days = getWeekDays();
+      const monday = days[0], sunday = days[6];
+      let out = `[주간 업무 보고] ${monday.getFullYear()}년 ${fmtKorean(monday)} ~ ${fmtKorean(sunday)}\n`;
+      out += '='.repeat(40) + '\n';
+      days.forEach(d => {
+        const tasks = data[toKey(d)] || [];
+        if (tasks.length === 0) return;
+        out += `\n● ${DAY_NAMES[d.getDay()]}요일 (${fmtKorean(d)})\n`;
+        tasks.forEach(t => {
+          out += `   - ${(t.category ? `[${t.category}] ` : '')}${t.text}\n`;
+        });
+      });
+      return out;
+    }
+
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      const text = buildText();
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('보고서가 클립보드에 복사되었습니다');
+      } catch {
+        // 폴백
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+        showToast('보고서가 복사되었습니다');
+      }
+    });
+
+    document.getElementById('printBtn').addEventListener('click', () => window.print());
+    document.getElementById('prevWeek').addEventListener('click', () => { weekOffset--; render(); });
+    document.getElementById('nextWeek').addEventListener('click', () => { weekOffset++; render(); });
+    document.getElementById('todayBtn').addEventListener('click', () => { weekOffset = 0; render(); });
+
+    render();
+  </script>
+</body>
+</html>
