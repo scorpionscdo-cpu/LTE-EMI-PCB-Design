@@ -190,7 +190,7 @@
         <tbody id="reportBody"></tbody>
       </table>
       <div class="btn-bar no-print" style="margin-top: 18px;">
-        <button class="btn primary" id="pdfBtn">📄 분석 리포트 PDF 만들기</button>
+        <button class="btn primary" id="pdfBtn">📄 주간업무보고서 PDF 만들기</button>
         <button class="btn green" id="copyBtn">📋 텍스트로 복사</button>
         <button class="btn" id="printBtn">🖨️ 표 인쇄</button>
         <button class="btn ghost" id="todayBtn">오늘 주로 이동</button>
@@ -486,7 +486,7 @@
             (a.catList.length ? `비중이 가장 높은 구분은 <b>${esc(a.catList[0].name)}</b>(${a.catList[0].pct}%)입니다.` : '');
 
       return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
-      <title>주간 업무 분석 리포트 - ${period}</title>
+      <title>주간업무보고서 - ${period}</title>
       <style>
         @page { size: A4; margin: 16mm; }
         * { box-sizing: border-box; }
@@ -518,15 +518,31 @@
         .meta { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 13px; }
         .meta td { border: 1px solid #d8d8e0; padding: 7px 10px; }
         .meta td.lab { background: #f6f7fb; color: #555; font-weight: 600; width: 80px; white-space: nowrap; }
+        .doctitle { text-align: center; font-size: 28px; font-weight: 800; letter-spacing: 12px; margin: 0 0 4px; padding-bottom: 10px; border-bottom: 3px double #333; }
+        .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin: 14px 0 18px; }
+        .head .left { font-size: 13px; color: #444; }
+        .head .left div { margin: 2px 0; }
+        .approve { border-collapse: collapse; font-size: 11px; text-align: center; }
+        .approve td { border: 1px solid #999; }
+        .approve .role { background: #f6f7fb; padding: 3px 6px; color: #555; }
+        .approve .sign { width: 58px; height: 46px; }
+        .approve caption { caption-side: top; font-size: 10px; color: #888; padding-bottom: 2px; }
       </style></head><body>
-        <h1>📄 주간 업무 분석 리포트</h1>
-        <div class="period">${period}</div>
+        <h1 class="doctitle">주 간 업 무 보 고 서</h1>
 
-        <table class="meta"><tbody>
-          <tr><td class="lab">회사명</td><td>${esc(info.company) || '-'}</td>
-              <td class="lab">담당자</td><td>${esc(info.author) || '-'}</td></tr>
-          <tr><td class="lab">담당 업무</td><td colspan="3">${esc(info.role) || '-'}</td></tr>
-        </tbody></table>
+        <div class="head">
+          <div class="left">
+            <div><b>보고기간</b> : ${period}</div>
+            <div><b>회사명</b> : ${esc(info.company) || '-'}</div>
+            <div><b>담당자</b> : ${esc(info.author) || '-'}</div>
+            <div><b>담당업무</b> : ${esc(info.role) || '-'}</div>
+            <div><b>작성일</b> : ${toKey(new Date())}</div>
+          </div>
+          <table class="approve"><caption>결 재</caption>
+            <tr><td class="role">담당</td><td class="role">검토</td><td class="role">승인</td></tr>
+            <tr><td class="sign"></td><td class="sign"></td><td class="sign"></td></tr>
+          </table>
+        </div>
 
         <div class="cards">
           <div class="stat"><div class="num">${a.total}</div><div class="cap">총 업무 건수</div></div>
@@ -535,7 +551,7 @@
           <div class="stat"><div class="num">${a.catList.length}</div><div class="cap">업무 구분 수</div></div>
         </div>
 
-        <h2>분석 요약</h2>
+        <h2>금주 업무 요약</h2>
         <div class="summary">${summary}</div>
 
         <h2>구분별 업무 비중</h2>
