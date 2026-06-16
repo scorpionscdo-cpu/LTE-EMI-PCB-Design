@@ -140,6 +140,17 @@
     <h1>🗂️ 주간업무보고서 자동작성</h1>
     <p class="sub">매일 한 일을 적어두면 그 주의 보고서에 자동으로 정리됩니다. 데이터는 이 브라우저에 저장됩니다.</p>
 
+    <!-- 작성자 정보 -->
+    <div class="card no-print">
+      <h2>작성자 정보</h2>
+      <div class="row">
+        <div class="field"><label for="coName">회사명</label><input type="text" id="coName"></div>
+        <div class="field"><label for="authorName">담당자</label><input type="text" id="authorName"></div>
+        <div class="field" style="flex:2;"><label for="authorRole">담당 업무</label><input type="text" id="authorRole"></div>
+      </div>
+      <div class="hint">입력한 정보는 자동 저장되며 분석 PDF 리포트 상단에 표시됩니다.</div>
+    </div>
+
     <!-- 일일 업무 입력 -->
     <div class="card no-print">
       <h2>오늘 한 일 기록하기</h2>
@@ -204,6 +215,26 @@
 
     let data = loadData();
     let weekOffset = 0; // 0 = 이번 주, -1 = 지난주 ...
+
+    // ---- 작성자 정보 ----
+    const INFO_KEY = 'weeklyWorkReport.info.v1';
+    const DEFAULT_INFO = { company: '서일이앤씨', author: '최동옥', role: '품질관리 및 자재관리 담당자' };
+    function loadInfo() {
+      try { return { ...DEFAULT_INFO, ...JSON.parse(localStorage.getItem(INFO_KEY)) }; }
+      catch { return { ...DEFAULT_INFO }; }
+    }
+    let info = loadInfo();
+    const coNameEl = document.getElementById('coName');
+    const authorNameEl = document.getElementById('authorName');
+    const authorRoleEl = document.getElementById('authorRole');
+    coNameEl.value = info.company;
+    authorNameEl.value = info.author;
+    authorRoleEl.value = info.role;
+    function saveInfo() {
+      info = { company: coNameEl.value.trim(), author: authorNameEl.value.trim(), role: authorRoleEl.value.trim() };
+      localStorage.setItem(INFO_KEY, JSON.stringify(info));
+    }
+    [coNameEl, authorNameEl, authorRoleEl].forEach(el => el.addEventListener('input', saveInfo));
 
     // ---- 날짜 유틸 ----
     function toKey(d) {
@@ -484,9 +515,18 @@
         .daybar .cnt { width: 28px; text-align: right; font-weight: 600; }
         .foot { margin-top: 26px; color: #aaa; font-size: 11px; text-align: right; }
         @media screen { body { max-width: 800px; margin: 24px auto; padding: 0 20px; } }
+        .meta { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 13px; }
+        .meta td { border: 1px solid #d8d8e0; padding: 7px 10px; }
+        .meta td.lab { background: #f6f7fb; color: #555; font-weight: 600; width: 80px; white-space: nowrap; }
       </style></head><body>
         <h1>📄 주간 업무 분석 리포트</h1>
         <div class="period">${period}</div>
+
+        <table class="meta"><tbody>
+          <tr><td class="lab">회사명</td><td>${esc(info.company) || '-'}</td>
+              <td class="lab">담당자</td><td>${esc(info.author) || '-'}</td></tr>
+          <tr><td class="lab">담당 업무</td><td colspan="3">${esc(info.role) || '-'}</td></tr>
+        </tbody></table>
 
         <div class="cards">
           <div class="stat"><div class="num">${a.total}</div><div class="cap">총 업무 건수</div></div>
