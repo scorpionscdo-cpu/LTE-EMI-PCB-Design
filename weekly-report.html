@@ -179,8 +179,9 @@
         <tbody id="reportBody"></tbody>
       </table>
       <div class="btn-bar no-print" style="margin-top: 18px;">
+        <button class="btn primary" id="pdfBtn">📄 분석 리포트 PDF 만들기</button>
         <button class="btn green" id="copyBtn">📋 텍스트로 복사</button>
-        <button class="btn" id="printBtn">🖨️ 인쇄 / PDF 저장</button>
+        <button class="btn" id="printBtn">🖨️ 표 인쇄</button>
         <button class="btn ghost" id="todayBtn">오늘 주로 이동</button>
       </div>
     </div>
@@ -380,6 +381,150 @@
       }
     });
 
+    // ---- 주간 분석 ----
+    function analyzeWeek() {
+      const days = getWeekDays();
+      let total = 0;
+      let workedDays = 0;
+      const byCategory = {};   // 구분별 건수
+      const byDay = [];        // 요일별 건수
+      const allTasks = [];
+
+      days.forEach(d => {
+        const tasks = data[toKey(d)] || [];
+        byDay.push({ name: `${DAY_NAMES[d.getDay()]}요일`, date: d, count: tasks.length });
+        if (tasks.length > 0) workedDays++;
+        tasks.forEach(t => {
+          total++;
+          const cat = t.category || '미분류';
+          byCategory[cat] = (byCategory[cat] || 0) + 1;
+          allTasks.push({ ...t, day: `${DAY_NAMES[d.getDay()]}` });
+        });
+      });
+
+      const catList = Object.entries(byCategory)
+        .map(([name, count]) => ({ name, count, pct: total ? Math.round(count / total * 100) : 0 }))
+        .sort((a, b) => b.count - a.count);
+
+      const busiest = byDay.slice().sort((a, b) => b.count - a.count)[0];
+      const avg = workedDays ? (total / workedDays).toFixed(1) : '0';
+
+      return { days, total, workedDays, avg, catList, byDay, busiest, allTasks, monday: days[0], sunday: days[6] };
+    }
+
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    }
+
+    function buildAnalysisHTML(a) {
+      const period = `${a.monday.getFullYear()}년 ${fmtKorean(a.monday)} ~ ${fmtKorean(a.sunday)}`;
+      const maxDay = Math.max(1, ...a.byDay.map(d => d.count));
+
+      const catRows = a.catList.length
+        ? a.catList.map(c => `
+            <tr>
+              <td>${esc(c.name)}</td>
+              <td style="text-align:right">${c.count}건</td>
+              <td style="width:45%">
+                <div class="bar"><span style="width:${c.pct}%"></span></div>
+              </td>
+              <td style="text-align:right">${c.pct}%</td>
+            </tr>`).join('')
+        : '<tr><td colspan="4" class="muted">기록된 업무가 없습니다.</td></tr>';
+
+      const dayBars = a.byDay.map(d => `
+        <div class="daybar">
+          <div class="lbl">${d.name}</div>
+          <div class="track"><span style="width:${Math.round(d.count / maxDay * 100)}%"></span></div>
+          <div class="cnt">${d.count}</div>
+        </div>`).join('');
+
+      const tableRows = a.byDay.map(d => {
+        const tasks = data[toKey(d.date)] || [];
+        const items = tasks.length
+          ? '<ul>' + tasks.map(t => `<li>${t.category ? `<b>[${esc(t.category)}]</b> ` : ''}${esc(t.text)}</li>`).join('') + '</ul>'
+          : '<span class="muted">기록 없음</span>';
+        return `<tr><td class="day">${d.name}<small>${fmtKorean(d.date)}</small></td><td>${items}</td></tr>`;
+      }).join('');
+
+      const summary =
+        a.total === 0
+          ? '이번 주에는 기록된 업무가 없습니다.'
+          : `이번 주(${period}) 동안 총 <b>${a.total}건</b>의 업무를 <b>${a.workedDays}일</b>에 걸쳐 수행했습니다 ` +
+            `(업무일 평균 ${a.avg}건). 가장 업무가 집중된 날은 <b>${a.busiest.name}</b>(${a.busiest.count}건)이며, ` +
+            (a.catList.length ? `비중이 가장 높은 구분은 <b>${esc(a.catList[0].name)}</b>(${a.catList[0].pct}%)입니다.` : '');
+
+      return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
+      <title>주간 업무 분석 리포트 - ${period}</title>
+      <style>
+        @page { size: A4; margin: 16mm; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, "Malgun Gothic", "Segoe UI", sans-serif; color: #1a1a2e; line-height: 1.55; }
+        h1 { font-size: 22px; margin: 0 0 2px; }
+        .period { color: #666; font-size: 13px; margin-bottom: 18px; }
+        h2 { font-size: 15px; margin: 22px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #ff8c42; }
+        .cards { display: flex; gap: 12px; margin-bottom: 6px; }
+        .stat { flex: 1; border: 1px solid #ddd; border-radius: 10px; padding: 12px 14px; text-align: center; }
+        .stat .num { font-size: 24px; font-weight: 700; color: #ff8c42; }
+        .stat .cap { font-size: 12px; color: #666; margin-top: 2px; }
+        .summary { background: #f6f7fb; border-left: 4px solid #ff8c42; padding: 12px 16px; border-radius: 6px; font-size: 13.5px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 8px 10px; border-bottom: 1px solid #e2e2ea; text-align: left; vertical-align: top; }
+        th { background: #f6f7fb; font-size: 12px; color: #555; }
+        td.day { white-space: nowrap; font-weight: 600; color: #b35a12; width: 90px; }
+        td.day small { display: block; color: #999; font-weight: 400; font-size: 11px; }
+        td ul { margin: 0; padding-left: 16px; } td li { margin: 2px 0; }
+        .muted { color: #999; font-style: italic; }
+        .bar { background: #eee; border-radius: 4px; height: 9px; overflow: hidden; }
+        .bar span { display: block; height: 100%; background: #ff8c42; }
+        .daybar { display: flex; align-items: center; gap: 10px; margin: 5px 0; font-size: 12.5px; }
+        .daybar .lbl { width: 56px; color: #555; }
+        .daybar .track { flex: 1; background: #eee; border-radius: 4px; height: 14px; overflow: hidden; }
+        .daybar .track span { display: block; height: 100%; background: linear-gradient(90deg,#ff8c42,#ffb27a); }
+        .daybar .cnt { width: 28px; text-align: right; font-weight: 600; }
+        .foot { margin-top: 26px; color: #aaa; font-size: 11px; text-align: right; }
+        @media screen { body { max-width: 800px; margin: 24px auto; padding: 0 20px; } }
+      </style></head><body>
+        <h1>📄 주간 업무 분석 리포트</h1>
+        <div class="period">${period}</div>
+
+        <div class="cards">
+          <div class="stat"><div class="num">${a.total}</div><div class="cap">총 업무 건수</div></div>
+          <div class="stat"><div class="num">${a.workedDays}</div><div class="cap">업무 수행 일수</div></div>
+          <div class="stat"><div class="num">${a.avg}</div><div class="cap">업무일 평균 건수</div></div>
+          <div class="stat"><div class="num">${a.catList.length}</div><div class="cap">업무 구분 수</div></div>
+        </div>
+
+        <h2>분석 요약</h2>
+        <div class="summary">${summary}</div>
+
+        <h2>구분별 업무 비중</h2>
+        <table><thead><tr><th>구분</th><th style="text-align:right">건수</th><th>비중</th><th style="text-align:right">%</th></tr></thead>
+          <tbody>${catRows}</tbody></table>
+
+        <h2>요일별 업무 분포</h2>
+        ${dayBars}
+
+        <h2>일자별 업무 내역</h2>
+        <table><thead><tr><th>요일</th><th>업무 내용</th></tr></thead><tbody>${tableRows}</tbody></table>
+
+        <div class="foot">생성일: ${toKey(new Date())} · 주간업무보고서 자동작성</div>
+        <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 300); };<\/script>
+      </body></html>`;
+    }
+
+    function generatePDF() {
+      const a = analyzeWeek();
+      if (a.total === 0) { showToast('이 주에는 기록된 업무가 없습니다'); return; }
+      const win = window.open('', '_blank');
+      if (!win) { showToast('팝업이 차단되었습니다. 팝업을 허용해주세요'); return; }
+      win.document.open();
+      win.document.write(buildAnalysisHTML(a));
+      win.document.close();
+      showToast('인쇄 대화상자에서 "PDF로 저장"을 선택하세요');
+    }
+
+    document.getElementById('pdfBtn').addEventListener('click', generatePDF);
     document.getElementById('printBtn').addEventListener('click', () => window.print());
     document.getElementById('prevWeek').addEventListener('click', () => { weekOffset--; render(); });
     document.getElementById('nextWeek').addEventListener('click', () => { weekOffset++; render(); });
