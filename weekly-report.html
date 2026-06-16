@@ -148,7 +148,11 @@
         <div class="field"><label for="authorName">담당자</label><input type="text" id="authorName"></div>
         <div class="field" style="flex:2;"><label for="authorRole">담당 업무</label><input type="text" id="authorRole"></div>
       </div>
-      <div class="hint">입력한 정보는 자동 저장되며 분석 PDF 리포트 상단에 표시됩니다.</div>
+      <div class="field">
+        <label for="approvers">결재란 직책 — 쉼표(,)로 구분 (서명칸은 비워서 출력됩니다)</label>
+        <input type="text" id="approvers" placeholder="담당,검토,승인">
+      </div>
+      <div class="hint">입력한 정보는 자동 저장되며 보고서 상단(결재란 포함)에 표시됩니다.</div>
     </div>
 
     <!-- 일일 업무 입력 -->
@@ -214,6 +218,7 @@
 
       <div class="btn-bar no-print" style="margin-top: 18px;">
         <button class="btn primary" id="pdfBtn">📄 주간업무보고서 PDF 만들기</button>
+        <button class="btn primary" id="monthBtn">📊 월간 누계 보고서 PDF</button>
         <button class="btn green" id="copyBtn">📋 텍스트로 복사</button>
         <button class="btn" id="printBtn">🖨️ 표 인쇄</button>
         <button class="btn ghost" id="todayBtn">오늘 주로 이동</button>
@@ -256,7 +261,7 @@
 
     // ---- 작성자 정보 ----
     const INFO_KEY = 'weeklyWorkReport.info.v1';
-    const DEFAULT_INFO = { company: '서일이앤씨', author: '최동옥', role: '품질관리 및 자재관리 담당자' };
+    const DEFAULT_INFO = { company: '서일이앤씨', author: '최동옥', role: '품질관리 및 자재관리 담당자', approvers: '담당,검토,승인' };
     function loadInfo() {
       try { return { ...DEFAULT_INFO, ...JSON.parse(localStorage.getItem(INFO_KEY)) }; }
       catch { return { ...DEFAULT_INFO }; }
@@ -265,14 +270,29 @@
     const coNameEl = document.getElementById('coName');
     const authorNameEl = document.getElementById('authorName');
     const authorRoleEl = document.getElementById('authorRole');
+    const approversEl = document.getElementById('approvers');
     coNameEl.value = info.company;
     authorNameEl.value = info.author;
     authorRoleEl.value = info.role;
+    approversEl.value = info.approvers;
     function saveInfo() {
-      info = { company: coNameEl.value.trim(), author: authorNameEl.value.trim(), role: authorRoleEl.value.trim() };
+      info = {
+        company: coNameEl.value.trim(), author: authorNameEl.value.trim(),
+        role: authorRoleEl.value.trim(), approvers: approversEl.value.trim()
+      };
       localStorage.setItem(INFO_KEY, JSON.stringify(info));
     }
-    [coNameEl, authorNameEl, authorRoleEl].forEach(el => el.addEventListener('input', saveInfo));
+    [coNameEl, authorNameEl, authorRoleEl, approversEl].forEach(el => el.addEventListener('input', saveInfo));
+
+    // 결재란 HTML 생성 (직책 헤더 + 빈 서명칸)
+    function buildApproveBox() {
+      const roles = (info.approvers || '담당,검토,승인').split(',').map(s => s.trim()).filter(Boolean);
+      if (roles.length === 0) return '';
+      return `<table class="approve"><caption>결 재</caption>
+        <tr>${roles.map(r => `<td class="role">${esc(r)}</td>`).join('')}</tr>
+        <tr>${roles.map(() => '<td class="sign"></td>').join('')}</tr>
+      </table>`;
+    }
 
     // ---- 날짜 유틸 ----
     function toKey(d) {
@@ -590,10 +610,7 @@
             <div><b>담당업무</b> : ${esc(info.role) || '-'}</div>
             <div><b>작성일</b> : ${toKey(new Date())}</div>
           </div>
-          <table class="approve"><caption>결 재</caption>
-            <tr><td class="role">담당</td><td class="role">검토</td><td class="role">승인</td></tr>
-            <tr><td class="sign"></td><td class="sign"></td><td class="sign"></td></tr>
-          </table>
+          ${buildApproveBox()}
         </div>
 
         <div class="cards">
@@ -635,7 +652,155 @@
       showToast('인쇄 대화상자에서 "PDF로 저장"을 선택하세요');
     }
 
+    // ---- 월간 누계 분석 ----
+    function analyzeMonth(year, month) { // month: 0~11
+      const monthData = [];     // {date, tasks}
+      const byCategory = {};
+      const byWeek = {};        // mondayKey -> {monday, sunday, count}
+      let total = 0;
+      const workedSet = new Set();
+
+      Object.keys(data).forEach(key => {
+        const d = new Date(key + 'T00:00:00');
+        if (d.getFullYear() !== year || d.getMonth() !== month) return;
+        const tasks = data[key] || [];
+        if (tasks.length === 0) return;
+        monthData.push({ key, date: d, tasks });
+        workedSet.add(key);
+        tasks.forEach(t => {
+          total++;
+          const cat = t.category || '미분류';
+          byCategory[cat] = (byCategory[cat] || 0) + 1;
+        });
+        const mk = toKey(getMonday(d));
+        if (!byWeek[mk]) {
+          const mon = getMonday(d);
+          const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
+          byWeek[mk] = { monday: mon, sunday: sun, count: 0 };
+        }
+        byWeek[mk].count += tasks.length;
+      });
+
+      monthData.sort((a, b) => a.date - b.date);
+      const catList = Object.entries(byCategory)
+        .map(([name, count]) => ({ name, count, pct: total ? Math.round(count / total * 100) : 0 }))
+        .sort((a, b) => b.count - a.count);
+      const weekList = Object.values(byWeek).sort((a, b) => a.monday - b.monday);
+      const workedDays = workedSet.size;
+      const avg = workedDays ? (total / workedDays).toFixed(1) : '0';
+
+      return { year, month, total, workedDays, avg, catList, weekList, monthData };
+    }
+
+    function buildMonthlyHTML(a) {
+      const period = `${a.year}년 ${a.month + 1}월`;
+      const maxWeek = Math.max(1, ...a.weekList.map(w => w.count));
+
+      const catRows = a.catList.length
+        ? a.catList.map(c => `<tr><td>${esc(c.name)}</td><td style="text-align:right">${c.count}건</td>
+            <td style="width:45%"><div class="bar"><span style="width:${c.pct}%"></span></div></td>
+            <td style="text-align:right">${c.pct}%</td></tr>`).join('')
+        : '<tr><td colspan="4" class="muted">기록된 업무가 없습니다.</td></tr>';
+
+      const weekBars = a.weekList.map((w, i) => `
+        <div class="daybar">
+          <div class="lbl">${i + 1}주차</div>
+          <div class="track"><span style="width:${Math.round(w.count / maxWeek * 100)}%"></span></div>
+          <div class="cnt">${w.count}</div>
+        </div>
+        <div style="font-size:11px;color:#999;margin:-2px 0 6px 66px;">${fmtKorean(w.monday)} ~ ${fmtKorean(w.sunday)}</div>`).join('');
+
+      const detailRows = a.monthData.map(m => {
+        const items = '<ul>' + m.tasks.map(t => `<li>${t.category ? `<b>[${esc(t.category)}]</b> ` : ''}${esc(t.text)}</li>`).join('') + '</ul>';
+        return `<tr><td class="day">${m.date.getMonth() + 1}/${m.date.getDate()}<small>${DAY_NAMES[m.date.getDay()]}</small></td><td>${items}</td></tr>`;
+      }).join('');
+
+      const summary = a.total === 0
+        ? `${period}에는 기록된 업무가 없습니다.`
+        : `${period} 한 달간 총 <b>${a.total}건</b>의 업무를 <b>${a.workedDays}일</b>에 걸쳐 수행했습니다 ` +
+          `(업무일 평균 ${a.avg}건, 총 ${a.weekList.length}개 주간). ` +
+          (a.catList.length ? `비중이 가장 높은 업무 구분은 <b>${esc(a.catList[0].name)}</b>(${a.catList[0].pct}%)입니다.` : '');
+
+      return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
+      <title>월간업무보고서 - ${period}</title>
+      <style>
+        @page { size: A4; margin: 16mm; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, "Malgun Gothic", "Segoe UI", sans-serif; color: #1a1a2e; line-height: 1.55; }
+        .doctitle { text-align: center; font-size: 28px; font-weight: 800; letter-spacing: 12px; margin: 0 0 4px; padding-bottom: 10px; border-bottom: 3px double #333; }
+        .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin: 14px 0 18px; }
+        .head .left { font-size: 13px; color: #444; } .head .left div { margin: 2px 0; }
+        h2 { font-size: 15px; margin: 22px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #4caf50; }
+        .cards { display: flex; gap: 12px; } .stat { flex: 1; border: 1px solid #ddd; border-radius: 10px; padding: 12px 14px; text-align: center; }
+        .stat .num { font-size: 24px; font-weight: 700; color: #4caf50; } .stat .cap { font-size: 12px; color: #666; margin-top: 2px; }
+        .summary { background: #f1f8f2; border-left: 4px solid #4caf50; padding: 12px 16px; border-radius: 6px; font-size: 13.5px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 8px 10px; border-bottom: 1px solid #e2e2ea; text-align: left; vertical-align: top; }
+        th { background: #f6f7fb; font-size: 12px; color: #555; }
+        td.day { white-space: nowrap; font-weight: 600; color: #2e7d32; width: 70px; } td.day small { display: block; color: #999; font-weight: 400; font-size: 11px; }
+        td ul { margin: 0; padding-left: 16px; } td li { margin: 2px 0; }
+        .muted { color: #999; font-style: italic; }
+        .bar { background: #eee; border-radius: 4px; height: 9px; overflow: hidden; } .bar span { display: block; height: 100%; background: #4caf50; }
+        .daybar { display: flex; align-items: center; gap: 10px; margin: 5px 0; font-size: 12.5px; }
+        .daybar .lbl { width: 56px; color: #555; } .daybar .track { flex: 1; background: #eee; border-radius: 4px; height: 14px; overflow: hidden; }
+        .daybar .track span { display: block; height: 100%; background: linear-gradient(90deg,#4caf50,#9ccc9e); } .daybar .cnt { width: 28px; text-align: right; font-weight: 600; }
+        .approve { border-collapse: collapse; font-size: 11px; text-align: center; } .approve td { border: 1px solid #999; }
+        .approve .role { background: #f6f7fb; padding: 3px 6px; color: #555; } .approve .sign { width: 62px; height: 62px; }
+        .approve caption { caption-side: top; font-size: 10px; color: #888; padding-bottom: 2px; }
+        .foot { margin-top: 26px; color: #aaa; font-size: 11px; text-align: right; }
+        @media screen { body { max-width: 800px; margin: 24px auto; padding: 0 20px; } }
+      </style></head><body>
+        <h1 class="doctitle">월 간 업 무 보 고 서</h1>
+        <div class="head">
+          <div class="left">
+            <div><b>보고월</b> : ${period}</div>
+            <div><b>회사명</b> : ${esc(info.company) || '-'}</div>
+            <div><b>담당자</b> : ${esc(info.author) || '-'}</div>
+            <div><b>담당업무</b> : ${esc(info.role) || '-'}</div>
+            <div><b>작성일</b> : ${toKey(new Date())}</div>
+          </div>
+          ${buildApproveBox()}
+        </div>
+
+        <div class="cards">
+          <div class="stat"><div class="num">${a.total}</div><div class="cap">월 총 업무 건수</div></div>
+          <div class="stat"><div class="num">${a.workedDays}</div><div class="cap">업무 수행 일수</div></div>
+          <div class="stat"><div class="num">${a.avg}</div><div class="cap">업무일 평균 건수</div></div>
+          <div class="stat"><div class="num">${a.weekList.length}</div><div class="cap">집계 주간 수</div></div>
+        </div>
+
+        <h2>월간 업무 요약</h2>
+        <div class="summary">${summary}</div>
+
+        <h2>구분별 업무 누계</h2>
+        <table><thead><tr><th>구분</th><th style="text-align:right">건수</th><th>비중</th><th style="text-align:right">%</th></tr></thead><tbody>${catRows}</tbody></table>
+
+        <h2>주차별 업무량</h2>
+        ${a.weekList.length ? weekBars : '<div class="muted">집계된 주간이 없습니다.</div>'}
+
+        <h2>일자별 업무 상세</h2>
+        <table><thead><tr><th>일자</th><th>업무 내용</th></tr></thead><tbody>${detailRows || '<tr><td colspan="2" class="muted">기록 없음</td></tr>'}</tbody></table>
+
+        <div class="foot">생성일: ${toKey(new Date())} · 월간업무보고서(누계) 자동작성</div>
+        <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 300); };<\/script>
+      </body></html>`;
+    }
+
+    function generateMonthlyPDF() {
+      // 현재 보고 중인 주의 월 기준
+      const ref = getWeekDays()[0];
+      const a = analyzeMonth(ref.getFullYear(), ref.getMonth());
+      if (a.total === 0) { showToast(`${ref.getFullYear()}년 ${ref.getMonth() + 1}월 기록이 없습니다`); return; }
+      const win = window.open('', '_blank');
+      if (!win) { showToast('팝업이 차단되었습니다. 팝업을 허용해주세요'); return; }
+      win.document.open();
+      win.document.write(buildMonthlyHTML(a));
+      win.document.close();
+      showToast('인쇄 대화상자에서 "PDF로 저장"을 선택하세요');
+    }
+
     document.getElementById('pdfBtn').addEventListener('click', generatePDF);
+    document.getElementById('monthBtn').addEventListener('click', generateMonthlyPDF);
     document.getElementById('printBtn').addEventListener('click', () => window.print());
     document.getElementById('prevWeek').addEventListener('click', () => { weekOffset--; render(); });
     document.getElementById('nextWeek').addEventListener('click', () => { weekOffset++; render(); });
