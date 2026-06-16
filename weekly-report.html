@@ -161,7 +161,24 @@
         </div>
         <div class="field" style="flex: 2;">
           <label for="category">구분 (선택)</label>
-          <input type="text" id="category" placeholder="예: 개발 / 회의 / 기타">
+          <input type="text" id="category" list="catList" placeholder="선택하거나 직접 입력">
+          <datalist id="catList">
+            <option value="수입검사"></option>
+            <option value="공정검사"></option>
+            <option value="출하검사"></option>
+            <option value="부적합/불량 처리"></option>
+            <option value="시정·예방조치(CAR)"></option>
+            <option value="측정기/검사장비 관리"></option>
+            <option value="협력업체 관리"></option>
+            <option value="품질문서/기록 관리"></option>
+            <option value="자재 입고검수"></option>
+            <option value="재고관리"></option>
+            <option value="발주/구매"></option>
+            <option value="자재 출고/불출"></option>
+            <option value="회의"></option>
+            <option value="교육/훈련"></option>
+            <option value="기타"></option>
+          </datalist>
         </div>
       </div>
       <div class="field">
@@ -189,6 +206,12 @@
         </thead>
         <tbody id="reportBody"></tbody>
       </table>
+      <div class="field no-print" style="margin-top: 20px;">
+        <label for="planInput">차주 업무계획 — 한 줄에 하나씩 (현재 보고서 주간에 저장됩니다)</label>
+        <textarea id="planInput" placeholder="예시)&#10;출하검사 기준서 개정&#10;협력업체 정기 평가&#10;재고 실사 및 안전재고 점검"></textarea>
+        <div class="hint">입력 즉시 자동 저장되며, PDF 보고서 하단에 표시됩니다.</div>
+      </div>
+
       <div class="btn-bar no-print" style="margin-top: 18px;">
         <button class="btn primary" id="pdfBtn">📄 주간업무보고서 PDF 만들기</button>
         <button class="btn green" id="copyBtn">📋 텍스트로 복사</button>
@@ -215,6 +238,21 @@
 
     let data = loadData();
     let weekOffset = 0; // 0 = 이번 주, -1 = 지난주 ...
+
+    // ---- 차주 업무계획 (주 단위 저장: { mondayKey: "텍스트" }) ----
+    const PLAN_KEY = 'weeklyWorkReport.plans.v1';
+    function loadPlans() {
+      try { return JSON.parse(localStorage.getItem(PLAN_KEY)) || {}; }
+      catch { return {}; }
+    }
+    let plans = loadPlans();
+    const planInput = document.getElementById('planInput');
+    planInput.addEventListener('input', () => {
+      const key = toKey(getWeekDays()[0]);
+      if (planInput.value.trim()) plans[key] = planInput.value;
+      else delete plans[key];
+      localStorage.setItem(PLAN_KEY, JSON.stringify(plans));
+    });
 
     // ---- 작성자 정보 ----
     const INFO_KEY = 'weeklyWorkReport.info.v1';
@@ -320,6 +358,9 @@
       const monday = days[0], sunday = days[6];
       const todayKey = toKey(new Date());
 
+      // 현재 주의 차주 업무계획 동기화
+      planInput.value = plans[toKey(monday)] || '';
+
       // 주 제목
       let label = '이번 주';
       if (weekOffset === -1) label = '지난주';
@@ -395,6 +436,11 @@
           out += `   - ${(t.category ? `[${t.category}] ` : '')}${t.text}\n`;
         });
       });
+      const planLines = (plans[toKey(monday)] || '').split('\n').map(s => s.trim()).filter(Boolean);
+      if (planLines.length) {
+        out += `\n● 차주 업무계획\n`;
+        planLines.forEach(p => { out += `   - ${p}\n`; });
+      }
       return out;
     }
 
@@ -478,6 +524,11 @@
         return `<tr><td class="day">${d.name}<small>${fmtKorean(d.date)}</small></td><td>${items}</td></tr>`;
       }).join('');
 
+      const planLines = (plans[toKey(a.monday)] || '').split('\n').map(s => s.trim()).filter(Boolean);
+      const planHTML = planLines.length
+        ? '<ul class="plan">' + planLines.map(p => `<li>${esc(p)}</li>`).join('') + '</ul>'
+        : '<div class="muted" style="padding:4px 2px;">등록된 차주 업무계획이 없습니다.</div>';
+
       const summary =
         a.total === 0
           ? '이번 주에는 기록된 업무가 없습니다.'
@@ -525,8 +576,9 @@
         .approve { border-collapse: collapse; font-size: 11px; text-align: center; }
         .approve td { border: 1px solid #999; }
         .approve .role { background: #f6f7fb; padding: 3px 6px; color: #555; }
-        .approve .sign { width: 58px; height: 46px; }
+        .approve .sign { width: 62px; height: 62px; }
         .approve caption { caption-side: top; font-size: 10px; color: #888; padding-bottom: 2px; }
+        ul.plan { margin: 4px 0; padding-left: 18px; } ul.plan li { margin: 3px 0; }
       </style></head><body>
         <h1 class="doctitle">주 간 업 무 보 고 서</h1>
 
@@ -561,8 +613,11 @@
         <h2>요일별 업무 분포</h2>
         ${dayBars}
 
-        <h2>일자별 업무 내역</h2>
+        <h2>금주 업무 실적 (일자별)</h2>
         <table><thead><tr><th>요일</th><th>업무 내용</th></tr></thead><tbody>${tableRows}</tbody></table>
+
+        <h2>차주 업무계획</h2>
+        ${planHTML}
 
         <div class="foot">생성일: ${toKey(new Date())} · 주간업무보고서 자동작성</div>
         <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 300); };<\/script>
