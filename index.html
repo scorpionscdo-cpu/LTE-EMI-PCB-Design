@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>업무 도구 모음</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Malgun Gothic", sans-serif;
+      background: linear-gradient(135deg, #2b2d42 0%, #1a1a2e 100%);
+      min-height: 100vh;
+      color: #e6e8f0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+    h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 6px; text-align: center; }
+    .sub { color: #8b8fb0; font-size: 0.95rem; margin-bottom: 32px; text-align: center; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      width: 100%;
+      max-width: 720px;
+    }
+    a.tile {
+      display: block;
+      background: #1f2235;
+      border-radius: 18px;
+      padding: 28px 24px;
+      text-decoration: none;
+      color: inherit;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
+      border: 1px solid #2e3150;
+      transition: transform 0.15s, border-color 0.15s, filter 0.15s;
+    }
+    a.tile:hover { transform: translateY(-4px); border-color: #ff8c42; filter: brightness(1.08); }
+    .tile .icon { font-size: 2.6rem; margin-bottom: 14px; }
+    .tile .name { font-size: 1.25rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .tile .desc { font-size: 0.9rem; color: #9aa0c4; line-height: 1.5; }
+    .tile .go { margin-top: 16px; color: #ff8c42; font-size: 0.88rem; font-weight: 600; }
+    footer { margin-top: 36px; color: #555a7d; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <h1>🛠️ 업무 도구 모음</h1>
+  <p class="sub">사용할 도구를 선택하세요.</p>
+
+  <div class="grid">
+    <a class="tile" href="/weekly-report.html">
+      <div class="icon">🗂️</div>
+      <div class="name">주간업무보고서</div>
+      <div class="desc">매일 한 일을 기록하면 주간·월간 보고서로 자동 정리하고 PDF로 저장합니다.</div>
+      <div class="go">열기 →</div>
+    </a>
+
+    <a class="tile" href="/chatbot.html">
+      <div class="icon">🧑‍🔧</div>
+      <div class="name">업무 노하우 챗봇</div>
+      <div class="desc">품질·자재관리 노하우가 담긴 나만의 챗봇. 지식을 추가하며 키울 수 있습니다.</div>
+      <div class="go">열기 →</div>
+    </a>
+
+    <a class="tile" href="/calculator.html">
+      <div class="icon">🧮</div>
+      <div class="name">사칙연산 계산기</div>
+      <div class="desc">간단한 더하기·빼기·곱하기·나누기 계산기입니다.</div>
+      <div class="go">열기 →</div>
+    </a>
+  </div>
+
+  <footer>서일이앤씨 · 업무 도구</footer>
+</body>
+</html>
