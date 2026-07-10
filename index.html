@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LTE-EMI PCB Design</title>
+  <meta name="description" content="220V AC LTE Communication PCB with EMI Optimization" />
+  <style>
+    :root {
+      --bg: #0b0f17;
+      --surface: #141b26;
+      --surface-2: #1c2634;
+      --border: #26313f;
+      --text: #e6edf3;
+      --muted: #9aa7b4;
+      --accent: #3fb950;
+      --accent-2: #58a6ff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+
+    header {
+      padding: 80px 0 60px;
+      text-align: center;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(63,185,80,0.12), transparent 60%);
+      border-bottom: 1px solid var(--border);
+    }
+    .badge {
+      display: inline-block;
+      font-size: 13px;
+      color: var(--accent);
+      border: 1px solid rgba(63,185,80,0.35);
+      background: rgba(63,185,80,0.08);
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 20px;
+      letter-spacing: 0.02em;
+    }
+    h1 {
+      font-size: clamp(32px, 6vw, 52px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+    .subtitle {
+      margin-top: 16px;
+      font-size: clamp(16px, 3vw, 20px);
+      color: var(--muted);
+      max-width: 640px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    section { padding: 56px 0; }
+    h2 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h2::before {
+      content: "";
+      width: 4px;
+      height: 22px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .card:hover { transform: translateY(-3px); border-color: var(--accent-2); }
+    .card h3 { font-size: 17px; margin-bottom: 8px; }
+    .card p { color: var(--muted); font-size: 15px; }
+
+    .boards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+    figure {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    figure img {
+      width: 100%;
+      display: block;
+      background: var(--surface-2);
+    }
+    figcaption {
+      padding: 14px 18px;
+      font-size: 14px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+
+    .specs { list-style: none; display: grid; gap: 12px; }
+    .specs li {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .specs .k { color: var(--muted); }
+    .specs .v { font-weight: 600; text-align: right; }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    footer a { color: var(--accent-2); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #ffffff;
+        --surface: #f6f8fa;
+        --surface-2: #eaeef2;
+        --border: #d0d7de;
+        --text: #1f2328;
+        --muted: #59636e;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <span class="badge">Hardware · PCB · EMI</span>
+      <h1>LTE-EMI PCB Design</h1>
+      <p class="subtitle">
+        220V AC LTE 통신 PCB · EMI 최적화 설계
+      </p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section>
+      <h2>개요</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>220V AC 전원</h3>
+          <p>상용 교류 전원에서 직접 동작하도록 설계된 전원부를 포함합니다.</p>
+        </div>
+        <div class="card">
+          <h3>LTE 통신</h3>
+          <p>LTE 모듈을 통한 무선 데이터 통신 기능을 탑재한 보드입니다.</p>
+        </div>
+        <div class="card">
+          <h3>EMI 최적화</h3>
+          <p>전자파 간섭(EMI)을 줄이기 위한 레이아웃 및 필터링 설계를 적용했습니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>보드 이미지</h2>
+      <div class="boards">
+        <figure>
+          <img src="board-front.jpg" alt="AD 보드 앞면" loading="lazy" />
+          <figcaption>AD 보드 · 앞면 (Front)</figcaption>
+        </figure>
+        <figure>
+          <img src="board-back.jpg" alt="AD 보드 뒤면" loading="lazy" />
+          <figcaption>AD 보드 · 뒤면 (Back)</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section>
+      <h2>주요 사양</h2>
+      <ul class="specs">
+        <li><span class="k">입력 전원</span><span class="v">220V AC</span></li>
+        <li><span class="k">통신 방식</span><span class="v">LTE</span></li>
+        <li><span class="k">설계 목표</span><span class="v">EMI 최적화</span></li>
+        <li><span class="k">보드 유형</span><span class="v">AD 보드</span></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <p>
+        LTE-EMI-PCB-Design ·
+        <a href="https://github.com/scorpionscdo-cpu/lte-emi-pcb-design">GitHub</a>
+      </p>
+    </div>
+  </footer>
+</body>
+</html>
