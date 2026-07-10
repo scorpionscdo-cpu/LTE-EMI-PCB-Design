@@ -1,6 +1,7 @@
 {
   "rewrites": [
     { "source": "/", "destination": "/index.html" },
-    { "source": "/report", "destination": "/weekly-report.html" }
+    { "source": "/report", "destination": "/weekly-report.html" },
+    { "source": "/chat", "destination": "/chatbot.html" }
   ]
 }
